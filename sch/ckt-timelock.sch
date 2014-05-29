@@ -125,11 +125,11 @@ C 48100 45800 1 270 0 capacitor-1.sym
 {
 T 48800 45600 5 10 0 1 270 0 1
 device=CAPACITOR
-T 48400 44900 5 10 1 1 0 0 1
+T 48600 45400 5 10 1 1 0 0 1
 refdes=C4
 T 49000 45600 5 10 0 0 270 0 1
 symversion=0.1
-T 48600 45100 5 10 1 1 0 0 1
+T 48600 45200 5 10 1 1 0 0 1
 value=0.1uF
 T 48100 45800 5 10 0 0 0 0 1
 footprint=0805
@@ -159,6 +159,8 @@ T 47100 50500 5 10 0 0 0 0 1
 device=7805
 T 46900 50200 5 10 1 1 0 6 1
 refdes=U1
+T 45500 49200 5 10 0 0 0 0 1
+footprint=SOT89
 }
 N 46300 48900 46300 49200 4
 C 52900 42400 1 0 0 switch-dip5-1.sym
@@ -193,12 +195,10 @@ description=16V
 }
 C 50900 45200 1 0 0 tc4428-1.sym
 {
-T 51500 46100 5 10 0 0 0 0 1
-device=7404
 T 51500 47700 5 10 1 1 0 0 1
 refdes=U3
 T 51500 48700 5 10 0 0 0 0 1
-footprint=DIP14
+footprint=SO8
 T 53000 45600 5 10 1 1 0 0 1
 device=TC4428
 }
@@ -226,6 +226,8 @@ T 54100 49450 5 10 0 0 0 0 1
 device=HEADER3
 T 53500 50100 5 10 1 1 0 0 1
 refdes=J2
+T 53100 48800 5 10 0 0 0 0 1
+footprint=TERMBLK3_3p5MM
 }
 C 41500 48800 1 0 1 termblk3-1.sym
 {
@@ -233,6 +235,8 @@ T 40500 49450 5 10 0 0 0 6 1
 device=HEADER3
 T 41100 50100 5 10 1 1 0 6 1
 refdes=J1
+T 41500 48800 5 10 0 0 0 0 1
+footprint=TERMBLK3_3p5MM
 }
 N 41500 49400 43100 49400 4
 N 43100 49400 43100 48900 4
@@ -310,8 +314,6 @@ T 48700 44600 5 10 1 1 0 0 1
 refdes=U2
 T 45300 44500 5 10 1 1 0 6 1
 device=ATtiny48
-T 44200 46500 5 10 0 0 0 0 1
-footprint=TQFP32_7
 T 45895 39895 5 10 1 1 0 8 1
 footprint=QFN32_5x5_0.5
 }
@@ -390,11 +392,11 @@ N 41800 49800 41800 50600 4
 C 51000 38300 1 270 0 reed-relay-diode-1.sym
 {
 T 51850 37700 5 10 1 1 270 4 1
-refdes=K?
-T 52000 38300 5 10 0 0 270 0 1
-device=Reed-Relay_Meder_SILxx-1A72-71D
+refdes=K1
+T 50700 38100 5 10 1 1 270 0 1
+device=9007-05-01
 T 52200 38300 5 10 0 0 270 0 1
-footprint=Reed-Relay_Meder_SILxx-1A72-71D
+footprint=sip-reed-relay-1
 }
 C 53200 37200 1 180 0 resistor-1.sym
 {
@@ -420,6 +422,8 @@ T 54700 39550 5 10 0 0 0 0 1
 device=HEADER3
 T 54100 40200 5 10 1 1 0 0 1
 refdes=J4
+T 53700 38900 5 10 0 0 0 0 1
+footprint=TERMBLK3_3p5MM
 }
 C 53700 37700 1 0 0 termblk3-1.sym
 {
@@ -427,6 +431,8 @@ T 54700 38350 5 10 0 0 0 0 1
 device=HEADER3
 T 54100 37500 5 10 1 1 0 0 1
 refdes=J5
+T 53700 37700 5 10 0 0 0 0 1
+footprint=TERMBLK3_3p5MM
 }
 C 50700 36100 1 0 0 mosfet-with-diode-1.sym
 {
