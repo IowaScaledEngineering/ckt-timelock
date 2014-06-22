@@ -36,13 +36,12 @@ void initialize500msTimer()
 }
 
 volatile uint8_t timerPhase = 0;
-ISR(TIMER0_COMPA_vect)
+ISR(TIMER1_COMPA_vect)
 {
 	timerPhase ^= 0xFF;
-	
+
 	if (timerPhase)
 	{
-		// FIXME: Do stuff, timey-wimey stuff
 		if (timelock)
 			timelock--;
 	}
@@ -64,6 +63,16 @@ void timelockLEDOn()
 void timelockLEDOff()
 {
 	PORTD &= ~_BV(PD2);
+}
+
+void auxLEDOn()
+{
+	PORTD |= _BV(PD4);
+}
+
+void auxLEDOff()
+{
+	PORTD &= ~_BV(PD4);
 }
 
 void trackShuntOn()
@@ -100,9 +109,13 @@ uint8_t debounceInputs(uint8_t* ioState)
 	return(changes);
 }
 
-
-#define unlockSwitchOn(a)  (0 == ((a) & UNLOCK_SWITCH_MASK))
-#define unlockSwitchOff(a)  (0 != ((a) & UNLOCK_SWITCH_MASK))
+uint8_t unlockSwitchOn(uint8_t ioState)
+{
+	if (0 == (ioState & _BV(0)))
+		return(1);
+	else
+		return(0);
+}
 
 uint8_t getInputTurnoutPosition()
 {
@@ -117,16 +130,26 @@ uint8_t getTimeIntervalInSecs()
 	return(timeValues[configSwitchValue]);
 }
 
-int main (void)
+void blinkAndDie()
+{
+	while(1)
+	{
+		PORTD ^= _BV(PD4);// | _BV(PD3) | _BV(PD4);
+		_delay_ms(200);
+	}
+}
+
+int main(void)
 {
 	uint8_t moduleMode = 0;
 	uint8_t defaultTurnoutPosition = 1;
-	uint8_t ioState = 0;
+	uint8_t ioState = 0xFF;
 	turnoutState_t state = STATE_LOCKED;
 
 	// Deal with watchdog first thing
 	MCUSR = 0;								// Clear reset status
-	WDTCSR = _BV(WDE) | _BV(WDP3);		// Enable WDT (4s)
+//	wdt_disable();
+//	WDTCSR = _BV(WDP3);		// Enable WDT (4s)
 
 	// Initialize ports 
 	// Pin Assignments for PORTA/DDRA
@@ -185,11 +208,7 @@ int main (void)
 
 	sei();
 
-
-
-
 	// TIME_RUN - passes ctrl in to ctrl out
-
 
 	while(1)
 	{
@@ -199,7 +218,6 @@ int main (void)
 		if (MODE_TIMELOCK == moduleMode)
 		{
 			// Timelocked Manual Switch Simulator
-
 			switch(state)
 			{
 				// STATE_LOCKED - holds turnout in default position	
@@ -223,7 +241,10 @@ int main (void)
 						timelockLEDOn();
 					else
 						timelockLEDOff();
-						
+
+					if (0 == timelock)
+						state = STATE_UNLOCKED;
+
 					break;
 			
 				case STATE_UNLOCKED:
@@ -233,7 +254,7 @@ int main (void)
 					
 					// If the user has moved the turnout back to the default position
 					// and released the lock, return to the locked up state
-					if (unlockSwitchOff(ioState) 
+					if (!unlockSwitchOn(ioState) 
 						&& getInputTurnoutPosition() == defaultTurnoutPosition)
 					{
 						// Give the switch machine two seconds to lock back up

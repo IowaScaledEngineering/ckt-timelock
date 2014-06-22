@@ -29,13 +29,13 @@ BASE_NAME = ckt-timelock
 
 # ATmega328P 20MHz @ 5.0V
 DEVICE  = attiny48
-F_CPU   = 8000000  # Hz
+F_CPU   = 8000000UL  # Hz
 FUSE_L  = 0xEE
-FUSE_H  = 0xD4
+FUSE_H  = 0xD5
 FUSE_E  = 0xFF
 
-PROGRAMMER_TYPE=avrispmkii
-#PROGRAMMER_TYPE=usbtiny
+#PROGRAMMER_TYPE=avrispmkii
+PROGRAMMER_TYPE=usbtiny
 PROGRAMMER_PORT=usb
 
 DEFINES = 
@@ -46,9 +46,9 @@ AVRDUDE_SLOW = avrdude -P $(PROGRAMMER_PORT) -c $(PROGRAMMER_TYPE) -p $(DEVICE) 
 
 OBJS = ${SRCS:.c=.o}
 INCLUDES = -I. 
-CFLAGS  = $(INCLUDES) -Wall -Os -std=gnu99
-ASFLAGS = -ffunction-sections -fdata-sections
-LDFLAGS = -Wl,-gc-sections
+CFLAGS  = $(INCLUDES) -Wall -O2 -std=gnu99
+#ASFLAGS = -ffunction-sections -fdata-sections
+#LDFLAGS = -Wl,-gc-sections
 
 COMPILE = avr-gcc $(DEFINES) -DF_CPU=$(F_CPU) $(CFLAGS) $(LDFLAGS) -mmcu=$(DEVICE)
 
