@@ -149,7 +149,7 @@ int main(void)
 	// Deal with watchdog first thing
 	MCUSR = 0;								// Clear reset status
 //	wdt_disable();
-//	WDTCSR = _BV(WDP3);		// Enable WDT (4s)
+	WDTCSR = _BV(WDP3);		// Enable WDT (4s)
 
 	// Initialize ports 
 	// Pin Assignments for PORTA/DDRA
@@ -278,6 +278,27 @@ int main(void)
 		{
 			// Dual Control Power Switch Simulator
 		
+			// Timelocked Manual Switch Simulator
+			switch(state)
+			{
+				// STATE_LOCKED - holds turnout in default position	
+				case STATE_LOCKED:
+					trackShuntOff();
+					timelockLEDOff();			
+					setTurnoutPosition(ioState & INPUT_DIR_MASK);
+					if (unlockSwitchOn(ioState))
+						state = STATE_UNLOCKED;
+					break;	
+
+				case STATE_UNLOCKED:					
+					trackShuntOn();
+					timelockLEDOn();
+					setTurnoutPosition(ioState & MANUAL_DIR_MASK);
+					if (!unlockSwitchOn(ioState))
+						state = STATE_LOCKED;
+					break;				
+					
+			}
 		}
 
 		// Wait 10mS before we get the inputs again and debounce again
