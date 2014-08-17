@@ -243,7 +243,14 @@ int main(void)
 						timelockLEDOff();
 
 					if (0 == timelock)
-						state = STATE_UNLOCKED;
+					{
+						if (unlockSwitchOn(ioState))
+						{
+							state = STATE_UNLOCKED;
+						} else {
+							state = STATE_LOCKED;
+						}
+					}
 
 					break;
 			
@@ -266,7 +273,12 @@ int main(void)
 
 				case STATE_RELOCKING:
 					if (0 == timelock)
-						state = STATE_LOCKED;
+					{
+						if(!unlockSwitchOn(ioState))
+							state = STATE_LOCKED;
+						else
+							state = STATE_UNLOCKED;
+					}
 					break;
 
 				default:
@@ -296,7 +308,10 @@ int main(void)
 					setTurnoutPosition(ioState & MANUAL_DIR_MASK);
 					if (!unlockSwitchOn(ioState))
 						state = STATE_LOCKED;
-					break;				
+					break;
+				default:
+					state = STATE_UNLOCKED;
+					break;
 					
 			}
 		}
