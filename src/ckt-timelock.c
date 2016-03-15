@@ -117,6 +117,19 @@ uint8_t unlockSwitchOn(uint8_t ioState)
 		return(0);
 }
 
+
+// This function only applies to the timelock case
+// where the manual input is overloaded to mean "local occupancy"
+// that will release the timelock immediately
+
+uint8_t localOccupancyOn(uint8_t ioState)
+{
+	if (0 == (ioState & _BV(1)))
+		return(1);
+	else
+		return(0);
+}
+
 uint8_t getInputTurnoutPosition()
 {
 	return ((PINC & _BV(PC5))?1:0);
@@ -230,7 +243,10 @@ int main(void)
 					if (unlockSwitchOn(ioState))
 					{
 						timelock = getTimeIntervalInSecs();
-						state = STATE_TIMERUN;
+						if (localOccupancyOn(ioState))
+							state = STATE_UNLOCKED;
+						else
+							state = STATE_TIMERUN;
 					}
 					break;
 			
