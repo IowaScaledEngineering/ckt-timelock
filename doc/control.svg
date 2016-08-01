@@ -14,7 +14,10 @@
    id="svg3306"
    version="1.1"
    inkscape:version="0.48.4 r9939"
-   sodipodi:docname="control.svg">
+   sodipodi:docname="control.ps"
+   inkscape:export-filename="/home/data/design/projects/ckt-timelock/doc/control.png"
+   inkscape:export-xdpi="1200"
+   inkscape:export-ydpi="1200">
   <defs
      id="defs3308" />
   <sodipodi:namedview
@@ -24,17 +27,17 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.6122035"
-     inkscape:cx="271.75598"
-     inkscape:cy="163.99851"
+     inkscape:zoom="1.4142136"
+     inkscape:cx="294.24798"
+     inkscape:cy="115.48637"
      inkscape:document-units="in"
      inkscape:current-layer="layer1"
      showgrid="false"
      units="in"
-     inkscape:window-width="1366"
-     inkscape:window-height="745"
+     inkscape:window-width="1600"
+     inkscape:window-height="1154"
      inkscape:window-x="0"
-     inkscape:window-y="1"
+     inkscape:window-y="24"
      inkscape:window-maximized="1"
      showguides="true"
      inkscape:guide-bbox="true"
@@ -126,6 +129,18 @@
        orientation="1,0"
        position="236.25,0"
        id="guide3118" />
+    <sodipodi:guide
+       orientation="0,1"
+       position="270,169.20001"
+       id="guide3097" />
+    <sodipodi:guide
+       orientation="1,0"
+       position="168.75,0"
+       id="guide3101" />
+    <sodipodi:guide
+       orientation="1,0"
+       position="281.25,0"
+       id="guide3103" />
   </sodipodi:namedview>
   <metadata
      id="metadata3311">
@@ -135,7 +150,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -237,18 +252,8 @@
          sodipodi:cy="127.75"
          sodipodi:cx="253.25"
          id="path3918-10"
-         style="fill:#b3b3b3;fill-opacity:1;stroke:#000000;stroke-width:2.02083324999999991;stroke-linecap:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+         style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:2.02083324999999991;stroke-linecap:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
          sodipodi:type="arc" />
-      <path
-         inkscape:connector-curvature="0"
-         id="path3920-31"
-         d="m 367.63675,819.72295 -15.2735,15.2735"
-         style="fill:#b3b3b3;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
-      <path
-         inkscape:connector-curvature="0"
-         id="path3922-8"
-         d="m 367.63675,834.99645 -15.2735,-15.2735"
-         style="fill:#b3b3b3;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
     </g>
     <text
        xml:space="preserve"
@@ -548,7 +553,7 @@
     </g>
     <g
        id="g3153"
-       transform="translate(-723.1804,25.157385)">
+       transform="translate(-734.4304,25.157385)">
       <g
          style="fill:#ffffff"
          inkscape:export-ydpi="72"
@@ -597,7 +602,7 @@
     </g>
     <g
        id="g3161-3"
-       transform="translate(-352.83436,-45.449985)">
+       transform="translate(-341.58436,-45.449995)">
       <g
          id="g3103-6">
         <g
@@ -615,7 +620,7 @@
              sodipodi:cy="127.75"
              sodipodi:cx="253.25"
              id="path3918-1-0-7-7"
-             style="fill:#0000ff;fill-opacity:1;stroke:#000000;stroke-width:2.02083324999999991;stroke-linecap:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+             style="fill:#0000ff;fill-opacity:1;stroke:#000000;stroke-width:2.02083325;stroke-linecap:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
              sodipodi:type="arc" />
           <path
              inkscape:connector-curvature="0"
@@ -677,7 +682,7 @@
     </g>
     <g
        id="g3153-7"
-       transform="translate(-723.1804,70.15739)">
+       transform="translate(-734.4304,70.15739)">
       <g
          style="fill:#ff0000"
          inkscape:export-ydpi="72"
