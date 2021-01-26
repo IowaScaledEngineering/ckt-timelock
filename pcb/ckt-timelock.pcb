@@ -1568,6 +1568,10 @@ Layer(5 "top silk" "silk")
 	Text[1935.00mil 510.00mil 1 100 "T2" "clearline"]
 	Text[1935.00mil 410.00mil 1 100 "T1" "clearline"]
 	Text[1285.00mil 95.00mil 2 100 "SW MOTOR" "clearline"]
+	Text[1375.00mil 980.00mil 1 100 "Iowa Scaled Engineering" "clearline"]
+	Text[350.00mil 1515.00mil 0 100 "CKT-TIMELOCK v2.0" "clearline"]
+	Text[350.00mil 1585.00mil 0 100 "CC BY-SA (C) 2021" "clearline"]
+	Text[345.00mil 1640.00mil 0 100 "www.iascaled.com" "clearline"]
 )
 NetList()
 (
