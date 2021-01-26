@@ -1,6 +1,6 @@
 schematics ckt-timelock.sch
 output-name ../pcb/ckt-timelock
 skip-m4
-elements-dir ../../footprints
+elements-dir ../../ise-footprints
 
 
