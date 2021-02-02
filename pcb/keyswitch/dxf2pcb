@@ -1,0 +1,3 @@
+#!/bin/bash
+
+python ./dxf2pcb.py -in keyswitch.dxf -out keyswitch.pcb -dmo -sol 5
