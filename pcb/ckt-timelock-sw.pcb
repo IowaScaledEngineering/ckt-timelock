@@ -876,17 +876,6 @@ Element["onsolder" "Terminal Block" "" "" 44.9897mm 26.7128mm 167.10mil -3.0469m
 
 	)
 
-Element["" "0805 SMT with 4 leads" "" "0805-4SMD" 1250.00mil 470.00mil -31.50mil -31.50mil 0 100 ""]
-(
-	Pad[0.6000mm -0.4750mm 1.2000mm -0.4750mm 0.6000mm 20.00mil 0.7524mm "1" "1" "square,edge2"]
-	Pad[-1.2000mm -0.4750mm -0.6000mm -0.4750mm 0.6000mm 20.00mil 0.7524mm "2" "2" "square"]
-	Pad[-1.2000mm 0.4750mm -0.6000mm 0.4750mm 0.6000mm 20.00mil 0.7524mm "3" "3" "square"]
-	Pad[0.6000mm 0.4750mm 1.2000mm 0.4750mm 0.6000mm 20.00mil 0.7524mm "4" "4" "square,edge2"]
-	ElementLine [-3.93mil -27.55mil 3.93mil -27.55mil 10.00mil]
-	ElementLine [-3.93mil 27.55mil 3.93mil 27.55mil 10.00mil]
-
-	)
-
 Element["" "SolderJumper" "" "" 1250.00mil 690.00mil -64.00mil -100.00mil 0 100 ""]
 (
 	Attribute("description" "Soldering Jumper, 60mil, open")
@@ -912,6 +901,17 @@ Element["" "SolderJumper" "" "" 1035.00mil 690.00mil -64.00mil -100.00mil 0 100 
 	Pad[-19.00mil -15.00mil -19.00mil 15.00mil 30.00mil 20.00mil 30.00mil "1" "1" "square"]
 	Pad[34.00mil 0.0000 34.00mil 0.0000 60.00mil 20.00mil 60.00mil "2" "2" "edge2"]
 	Pad[19.00mil -15.00mil 19.00mil 15.00mil 30.00mil 20.00mil 30.00mil "2" "2" "square"]
+
+	)
+
+Element["" "0805 SMT with 4 leads" "" "0805-4SMD" 1250.00mil 470.00mil 31.50mil 31.50mil 2 100 ""]
+(
+	Pad[-1.2000mm 0.4750mm -0.6000mm 0.4750mm 0.6000mm 20.00mil 0.7524mm "1" "1" "square"]
+	Pad[0.6000mm 0.4750mm 1.2000mm 0.4750mm 0.6000mm 20.00mil 0.7524mm "2" "2" "square,edge2"]
+	Pad[0.6000mm -0.4750mm 1.2000mm -0.4750mm 0.6000mm 20.00mil 0.7524mm "3" "3" "square,edge2"]
+	Pad[-1.2000mm -0.4750mm -0.6000mm -0.4750mm 0.6000mm 20.00mil 0.7524mm "4" "4" "square"]
+	ElementLine [-3.93mil 27.55mil 3.93mil 27.55mil 10.00mil]
+	ElementLine [-3.93mil -27.55mil 3.93mil -27.55mil 10.00mil]
 
 	)
 Layer(1 "component" "copper")
@@ -1298,9 +1298,9 @@ Layer(5 "top silk" "silk")
 	Line[1320.00mil 410.00mil 1320.00mil 425.00mil 7.00mil 20.00mil "clearline"]
 	Line[1180.00mil 515.00mil 1180.00mil 530.00mil 7.00mil 20.00mil "clearline"]
 	Line[1180.00mil 410.00mil 1180.00mil 425.00mil 7.00mil 20.00mil "clearline"]
-	Line[1375.00mil 450.00mil 1375.00mil 490.00mil 15.00mil 20.00mil "clearline"]
-	Line[1355.00mil 470.00mil 1395.00mil 470.00mil 15.00mil 20.00mil "clearline"]
 	Line[1100.00mil 620.00mil 1400.00mil 620.00mil 10.00mil 20.00mil "clearline"]
+	Line[1090.00mil 450.00mil 1090.00mil 490.00mil 15.00mil 20.00mil "clearline"]
+	Line[1070.00mil 470.00mil 1110.00mil 470.00mil 15.00mil 20.00mil "clearline"]
 	Arc[48.1820mm 33.7299mm 200.00mil 200.00mil 7.00mil 14.00mil 214 56 "clearline"]
 	Arc[46.4556mm 927.95mil 200.00mil 200.00mil 7.00mil 14.00mil 29 61 "clearline"]
 	Arc[1250.00mil 1250.00mil 462.50mil 462.50mil 7.00mil 14.00mil 209 122 "clearline"]
