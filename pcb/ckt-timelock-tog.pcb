@@ -1272,10 +1272,10 @@ Layer(3 "outline" "outline")
 Layer(4 "bottom silk" "silk")
 (
 	Line[1590.00mil 1745.00mil 835.00mil 1745.00mil 10.00mil 20.00mil "clearline"]
-	Text[1580.00mil 1760.00mil 2 100 "CKT-TIMELOCK-SW2   v1.0" "clearline,onsolder"]
 	Text[1580.00mil 1670.00mil 2 100 "Iowa Scaled Engineering" "clearline,onsolder"]
 	Text[1580.00mil 1830.00mil 2 100 "CC BY-SA (C) 2021" "clearline,onsolder"]
 	Text[1580.00mil 1900.00mil 2 100 "https://www.iascaled.com" "clearline,onsolder"]
+	Text[1580.00mil 1760.00mil 2 100 "CKT-TIMELOCK-TOG  v1.0" "clearline,onsolder"]
 	Polygon("clearpoly")
 	(
 		[25.7701mm 912.91mil] [25.8707mm 910.20mil] [25.9052mm 905.75mil] [25.8915mm 902.60mil] [25.8417mm 900.10mil] 
