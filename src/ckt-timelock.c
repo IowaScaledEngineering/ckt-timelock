@@ -69,9 +69,9 @@ ISR(TIM1_COMPA_vect)
 	}
 }
 
-void setTurnoutPosition(uint8_t pos)
+void setTurnoutPosition(bool diverging)
 {
-	if (pos)
+	if (diverging)
 		PORTB = (PORTB & ~(_BV(PB1) | _BV(PB2))) | _BV(PB1);
 	else
 		PORTB = (PORTB & ~(_BV(PB1) | _BV(PB2))) | _BV(PB2);
@@ -141,14 +141,19 @@ bool isUnlockSwitchOn(DebounceState8_t* d)
 	return(d->debounced_state & UNLOCK_SWITCH_MASK);
 }
 
-bool getInputTurnoutPosition(DebounceState8_t* d)
-{
-	return(d->debounced_state & INPUT_DIR_SWITCH_MASK);
-}
-
-bool getDefaultTurnoutPosition(DebounceState8_t* d)
+bool getInvertTurnoutInput(DebounceState8_t* d)
 {
 	return(d->debounced_state & CONF_SW5_MASK);
+}
+
+bool getInputTurnoutPosition(DebounceState8_t* d)
+{
+	bool inputState = (d->debounced_state & INPUT_DIR_SWITCH_MASK)?true:false;
+
+	if (getInvertTurnoutInput(d))
+		inputState = !inputState;
+
+	return(inputState);
 }
 
 uint8_t getTimeIntervalInSecs(DebounceState8_t* d)
@@ -158,11 +163,9 @@ uint8_t getTimeIntervalInSecs(DebounceState8_t* d)
 	return(timeValues[configSwitchValue]);
 }
 
-
 // Switch Definitions
 // SW1 - SW4 - Time to lock
-// SW5 - Default position normal (Off = input high, On = input low)
-
+// SW5 - Invert turnout switch input (Off = input high = normal, On = input low = normal)
 
 void factoryTestMode(void)
 {
@@ -211,7 +214,7 @@ int main(void)
 			// STATE_LOCKED - holds turnout in default position	
 			case STATE_LOCKED:
 				timelock = 0;
-				setTurnoutPosition(getDefaultTurnoutPosition(&debouncedInputs));
+				setTurnoutPosition(false);
 				trackShuntOff();
 				timelockLEDOff();
 
@@ -223,7 +226,7 @@ int main(void)
 				break;
 		
 			case STATE_TIMERUN:
-				setTurnoutPosition(getDefaultTurnoutPosition(&debouncedInputs));
+				setTurnoutPosition(false);
 				trackShuntOn();
 				if (timerPhase) 
 					timelockLEDOn();
@@ -250,10 +253,10 @@ int main(void)
 				// If the user has moved the turnout back to the default position
 				// and released the lock, return to the locked up state
 				if (!isUnlockSwitchOn(&debouncedInputs)
-					&& getInputTurnoutPosition(&debouncedInputs) == getDefaultTurnoutPosition(&debouncedInputs))
+					&& getInputTurnoutPosition(&debouncedInputs) == false)
 				{
 					// Give the switch machine two seconds to lock back up
-					setTurnoutPosition(getDefaultTurnoutPosition(&debouncedInputs));
+					setTurnoutPosition(false);
 					timelock = 2;
 					state = STATE_RELOCKING;
 				}
@@ -273,7 +276,7 @@ int main(void)
 				state = STATE_LOCKED;
 				break;
 		}
+		_delay_ms(20);
 	}
-	_delay_ms(20);
 }
 
