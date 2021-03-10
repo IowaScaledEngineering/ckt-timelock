@@ -30,6 +30,7 @@ LICENSE:
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
 #include <util/delay.h>
+#include <util/atomic.h>
 
 #include "debouncer.h"
 
@@ -43,11 +44,14 @@ typedef enum
 } turnoutState_t;
 
 
-volatile uint8_t timelock = 0;
+volatile uint8_t timerCountdown = 0;
+volatile bool timerPhase = true;
 
 void initialize500msTimer()
 {
 	// Set up timer 0 for 2Hz interrupts
+	timerCountdown = 0;
+	timerPhase = true;
 	TCNT1 = 0;
 	OCR1A = 0x0F41;
 	TCCR1A = 0;
@@ -57,17 +61,35 @@ void initialize500msTimer()
 	TIMSK1 |= _BV(OCIE1A);
 }
 
-volatile uint8_t timerPhase = 0;
 ISR(TIM1_COMPA_vect)
 {
-	timerPhase ^= 0xFF;
+	timerPhase = !timerPhase;
 
 	if (timerPhase)
 	{
-		if (timelock)
-			timelock--;
+		if (timerCountdown)
+			timerCountdown--;
 	}
 }
+
+uint8_t getTimerSecondsRemaining()
+{
+	return timerCountdown;
+}
+
+void setTimer(uint8_t seconds)
+{
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	{
+		cli();
+		timerPhase = true;
+		timerCountdown = seconds;
+		TCNT1 = 0;
+		TIFR1 |= _BV(OCF1A); // Clear the interrupt flag to get the full count
+		sei();
+	}
+}
+
 
 void setTurnoutPosition(bool diverging)
 {
@@ -182,6 +204,13 @@ bool getEnterFactoryTestMode(DebounceState8_t* d)
 	return (0x1F == (d->debounced_state & 0x1F));
 }
 
+void init_powerReduction()
+{
+	// Not strictly necessary, but might as well save power on the peripherals we don't use
+	// which would be most of them
+	
+	PRR = _BV(PRTIM0) | _BV(PRUSI) | _BV(PRADC);
+}
 
 int main(void)
 {
@@ -194,9 +223,13 @@ int main(void)
 	wdt_enable(WDTO_1S);             // Enable it at a 1S timeout.
 	cli();
 
+	init_powerReduction();
 	init_gpio();
 	initDebounceState8(&debouncedInputs, getInputState());
 	initialize500msTimer();
+
+	
+	
 	// Determine here if we should go into factory test mode
 	if (getEnterFactoryTestMode(&debouncedInputs))
 	{
@@ -213,14 +246,14 @@ int main(void)
 		{
 			// STATE_LOCKED - holds turnout in default position	
 			case STATE_LOCKED:
-				timelock = 0;
+				timerCountdown = 0;
 				setTurnoutPosition(false);
 				trackShuntOff();
 				timelockLEDOff();
 
 				if (isUnlockSwitchOn(&debouncedInputs))
 				{
-					timelock = getTimeIntervalInSecs(&debouncedInputs);
+					setTimer(getTimeIntervalInSecs(&debouncedInputs));
 					state = STATE_TIMERUN;
 				}
 				break;
@@ -233,7 +266,7 @@ int main(void)
 				else
 					timelockLEDOff();
 
-				if (0 == timelock)
+				if (0 == getTimerSecondsRemaining())
 				{
 					if (isUnlockSwitchOn(&debouncedInputs))
 					{
@@ -257,13 +290,13 @@ int main(void)
 				{
 					// Give the switch machine two seconds to lock back up
 					setTurnoutPosition(false);
-					timelock = 2;
+					setTimer(2);
 					state = STATE_RELOCKING;
 				}
 				break;
 
 			case STATE_RELOCKING:
-				if (0 == timelock)
+				if (0 == getTimerSecondsRemaining())
 				{
 					if(!isUnlockSwitchOn(&debouncedInputs))
 						state = STATE_LOCKED;
