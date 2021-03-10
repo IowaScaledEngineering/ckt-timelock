@@ -43,7 +43,7 @@ typedef enum
 } turnoutState_t;
 
 
-volatile uint8_t timelock;
+volatile uint8_t timelock = 0;
 
 void initialize500msTimer()
 {
@@ -58,7 +58,7 @@ void initialize500msTimer()
 }
 
 volatile uint8_t timerPhase = 0;
-ISR(TIMER1_COMPA_vect)
+ISR(TIM1_COMPA_vect)
 {
 	timerPhase ^= 0xFF;
 
@@ -132,6 +132,54 @@ void init_gpio()
 	PORTB = 0b00000000;
 }
 
+#define CONF_SW5_MASK         _BV(4)
+#define UNLOCK_SWITCH_MASK    _BV(5)
+#define INPUT_DIR_SWITCH_MASK _BV(6)
+
+bool isUnlockSwitchOn(DebounceState8_t* d)
+{
+	return(d->debounced_state & UNLOCK_SWITCH_MASK);
+}
+
+bool getInputTurnoutPosition(DebounceState8_t* d)
+{
+	return(d->debounced_state & INPUT_DIR_SWITCH_MASK);
+}
+
+bool getDefaultTurnoutPosition(DebounceState8_t* d)
+{
+	return(d->debounced_state & CONF_SW5_MASK);
+}
+
+uint8_t getTimeIntervalInSecs(DebounceState8_t* d)
+{
+	uint8_t configSwitchValue = (d->debounced_state & 0x0F);
+	const uint8_t timeValues[16] = { 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 90, 120, 180, 5 };
+	return(timeValues[configSwitchValue]);
+}
+
+
+// Switch Definitions
+// SW1 - SW4 - Time to lock
+// SW5 - Default position normal (Off = input high, On = input low)
+
+
+void factoryTestMode(void)
+{
+	// Implements factory test mode
+	while(true)
+	{
+		wdt_reset();
+		// Implement factory test mode here
+	}
+}
+
+bool getEnterFactoryTestMode(DebounceState8_t* d)
+{
+	return (0x1F == (d->debounced_state & 0x1F));
+}
+
+
 int main(void)
 {
 	DebounceState8_t debouncedInputs;
@@ -145,23 +193,87 @@ int main(void)
 
 	init_gpio();
 	initDebounceState8(&debouncedInputs, getInputState());
+	initialize500msTimer();
+	// Determine here if we should go into factory test mode
+	if (getEnterFactoryTestMode(&debouncedInputs))
+	{
+		factoryTestMode();
+	}
 
 	sei();
 	while(1)
 	{
 		wdt_reset();
 		debounce8(getInputState(), &debouncedInputs);
-		if(debouncedInputs.debounced_state & _BV(PA5))
+
+		switch(state)
 		{
-			timelockLEDOn();
-			trackShuntOn();
-			setTurnoutPosition(1);
-		} else {
-			timelockLEDOff();
-			trackShuntOff();
-			setTurnoutPosition(0);
+			// STATE_LOCKED - holds turnout in default position	
+			case STATE_LOCKED:
+				timelock = 0;
+				setTurnoutPosition(getDefaultTurnoutPosition(&debouncedInputs));
+				trackShuntOff();
+				timelockLEDOff();
+
+				if (isUnlockSwitchOn(&debouncedInputs))
+				{
+					timelock = getTimeIntervalInSecs(&debouncedInputs);
+					state = STATE_TIMERUN;
+				}
+				break;
+		
+			case STATE_TIMERUN:
+				setTurnoutPosition(getDefaultTurnoutPosition(&debouncedInputs));
+				trackShuntOn();
+				if (timerPhase) 
+					timelockLEDOn();
+				else
+					timelockLEDOff();
+
+				if (0 == timelock)
+				{
+					if (isUnlockSwitchOn(&debouncedInputs))
+					{
+						state = STATE_UNLOCKED;
+					} else {
+						state = STATE_LOCKED;
+					}
+				}
+
+				break;
+		
+			case STATE_UNLOCKED:
+				trackShuntOn();
+				timelockLEDOn();
+				setTurnoutPosition(getInputTurnoutPosition(&debouncedInputs));
+				
+				// If the user has moved the turnout back to the default position
+				// and released the lock, return to the locked up state
+				if (!isUnlockSwitchOn(&debouncedInputs)
+					&& getInputTurnoutPosition(&debouncedInputs) == getDefaultTurnoutPosition(&debouncedInputs))
+				{
+					// Give the switch machine two seconds to lock back up
+					setTurnoutPosition(getDefaultTurnoutPosition(&debouncedInputs));
+					timelock = 2;
+					state = STATE_RELOCKING;
+				}
+				break;
+
+			case STATE_RELOCKING:
+				if (0 == timelock)
+				{
+					if(!isUnlockSwitchOn(&debouncedInputs))
+						state = STATE_LOCKED;
+					else
+						state = STATE_UNLOCKED;
+				}
+				break;
+
+			default:
+				state = STATE_LOCKED;
+				break;
 		}
 	}
-
+	_delay_ms(20);
 }
 
