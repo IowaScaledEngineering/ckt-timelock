@@ -4,6 +4,11 @@ void initDebounceState8(DebounceState8_t* d, uint8_t initialState)
 {
 	d->clock_A = d->clock_B = 0;
 	d->debounced_state = initialState;
+	
+	// Run the vertical counters so there's no glitch
+	for(uint8_t i=0; i<4; i++)
+		debounce8(initialState, d);
+	
 }
 
 uint8_t debounce8(uint8_t raw_inputs, DebounceState8_t* d)

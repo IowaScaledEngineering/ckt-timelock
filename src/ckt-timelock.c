@@ -41,7 +41,7 @@ typedef enum
 	STATE_TIMERUN = 1,
 	STATE_UNLOCKED = 2,
 	STATE_RELOCKING = 3
-} turnoutState_t;
+} TurnoutState_t;
 
 
 volatile uint8_t timerCountdown = 0;
@@ -151,10 +151,17 @@ void init_gpio()
 	//  PB6 - N/A
 	//  PB7 - N/A
 	DDRB  = 0b00000111;
-	PORTB = 0b00000000;
+	PORTB = 0b00000100;
 }
 
-#define CONF_SW5_MASK         _BV(4)
+#define CONF_SW_R_MASK        _BV(4)
+#define CONF_SW_T1_MASK       _BV(3)
+#define CONF_SW_T2_MASK       _BV(2)
+#define CONF_SW_T3_MASK       _BV(1)
+#define CONF_SW_T4_MASK       _BV(0)
+
+#define CONF_SW_MASK (CONF_SW_R_MASK | CONF_SW_T1_MASK | CONF_SW_T2_MASK | CONF_SW_T3_MASK | CONF_SW_T4_MASK)
+
 #define UNLOCK_SWITCH_MASK    _BV(5)
 #define INPUT_DIR_SWITCH_MASK _BV(6)
 
@@ -165,7 +172,7 @@ bool isUnlockSwitchOn(DebounceState8_t* d)
 
 bool getInvertTurnoutInput(DebounceState8_t* d)
 {
-	return(d->debounced_state & CONF_SW5_MASK);
+	return(d->debounced_state & CONF_SW_R_MASK);
 }
 
 bool getInputTurnoutPosition(DebounceState8_t* d)
@@ -189,13 +196,69 @@ uint8_t getTimeIntervalInSecs(DebounceState8_t* d)
 // SW1 - SW4 - Time to lock
 // SW5 - Invert turnout switch input (Off = input high = normal, On = input low = normal)
 
-void factoryTestMode(void)
+typedef enum
 {
+	STATE_UP_SW1_SW5 = 0,
+	STATE_UP_SW2_SW5,
+	STATE_UP_SW3_SW5,
+	STATE_UP_SW4_SW5,
+	STATE_UP_SW5,
+	STATE_TEST_INPUTS
+} TestState_t;
+
+void factoryTestMode(DebounceState8_t* d)
+{
+	TestState_t state = STATE_UP_SW1_SW5;
 	// Implements factory test mode
+	
+	trackShuntOff();
+	timelockLEDOff();
+	setTurnoutPosition(true);
 	while(true)
 	{
 		wdt_reset();
+		debounce8(getInputState(), d);
 		// Implement factory test mode here
+		switch(state)
+		{
+			case STATE_UP_SW1_SW5:
+				setTurnoutPosition(true);
+				if ((d->debounced_state & CONF_SW_MASK) == (CONF_SW_T1_MASK | CONF_SW_T2_MASK | CONF_SW_T3_MASK | CONF_SW_T4_MASK))
+					state = STATE_UP_SW2_SW5;
+				break;
+			case STATE_UP_SW2_SW5:
+				setTurnoutPosition(false);
+				if ((d->debounced_state & CONF_SW_MASK) == (CONF_SW_T2_MASK | CONF_SW_T3_MASK | CONF_SW_T4_MASK))
+					state = STATE_UP_SW3_SW5;
+				break;
+			case STATE_UP_SW3_SW5:
+				setTurnoutPosition(true);
+				if ((d->debounced_state & CONF_SW_MASK) == (CONF_SW_T3_MASK | CONF_SW_T4_MASK))
+					state = STATE_UP_SW4_SW5;
+				break;
+			case STATE_UP_SW4_SW5:
+				setTurnoutPosition(false);
+				if ((d->debounced_state & CONF_SW_MASK) == (CONF_SW_T4_MASK))
+					state = STATE_UP_SW5;
+				break;
+			case STATE_UP_SW5:
+				setTurnoutPosition(true);
+				if ((d->debounced_state & CONF_SW_MASK) == 0)
+					state = STATE_TEST_INPUTS;
+				break;
+			case STATE_TEST_INPUTS:
+				setTurnoutPosition(getInputTurnoutPosition(d));
+				if(isUnlockSwitchOn(d))
+				{
+					trackShuntOff();
+					timelockLEDOn();
+				} else {
+					trackShuntOn();
+					timelockLEDOff();
+				}
+				break;
+		}
+		_delay_ms(20);
 	}
 }
 
@@ -215,25 +278,23 @@ void init_powerReduction()
 int main(void)
 {
 	DebounceState8_t debouncedInputs;
-	turnoutState_t state = STATE_LOCKED;
+	TurnoutState_t state = STATE_LOCKED;
 
 	// Deal with watchdog first thing
 	MCUSR = 0;                       // Clear reset status
 	wdt_reset();                     // Reset the WDT, just in case it's still enabled over reset
-	wdt_enable(WDTO_1S);             // Enable it at a 1S timeout.
+	wdt_enable(WDTO_250MS);             // Enable it at a 250mS timeout.
 	cli();
 
-	init_powerReduction();
 	init_gpio();
-	initDebounceState8(&debouncedInputs, getInputState());
+	init_powerReduction();
 	initialize500msTimer();
+	initDebounceState8(&debouncedInputs, getInputState());
 
-	
-	
 	// Determine here if we should go into factory test mode
 	if (getEnterFactoryTestMode(&debouncedInputs))
 	{
-		factoryTestMode();
+		factoryTestMode(&debouncedInputs);
 	}
 
 	sei();
@@ -290,7 +351,7 @@ int main(void)
 				{
 					// Give the switch machine two seconds to lock back up
 					setTurnoutPosition(false);
-					setTimer(2);
+					setTimer(1);
 					state = STATE_RELOCKING;
 				}
 				break;
