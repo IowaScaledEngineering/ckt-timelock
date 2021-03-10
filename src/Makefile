@@ -1,12 +1,12 @@
 #*************************************************************************
-#Title:    MRB-AVRTEMPLATE Makefile
+#Title:    CKT-TIMELOCK Makefile
 #Authors:  Michael Petersen <railfan@drgw.net>
 #          Nathan Holmes <maverick@drgw.net>
-#File:     MRB-AVRTEMPLATE Makefile
+#File:     CKT-TIMELOCK Makefile
 #License:  GNU General Public License v3
 #
 #LICENSE:
-#    Copyright (C) 2012 Nathan Holmes and Michael Petersen
+#    Copyright (C) 2021 Nathan Holmes and Michael Petersen
 #
 #    Derived from example WinAVR project Makefile
 #
@@ -28,10 +28,10 @@
 BASE_NAME = ckt-timelock
 
 # ATmega328P 20MHz @ 5.0V
-DEVICE  = attiny48
+DEVICE  = attiny44
 F_CPU   = 8000000UL  # Hz
-FUSE_L  = 0xEE
-FUSE_H  = 0xD5
+FUSE_L  = 0xE2
+FUSE_H  = 0xC4
 FUSE_E  = 0xFF
 
 #PROGRAMMER_TYPE=avrispmkii
@@ -39,9 +39,9 @@ PROGRAMMER_TYPE=iseavrprog
 PROGRAMMER_PORT=usb
 
 DEFINES = 
-SRCS = $(BASE_NAME).c
+SRCS = $(BASE_NAME).c debouncer.c
 
-AVRDUDE = avrdude -P $(PROGRAMMER_PORT) -c $(PROGRAMMER_TYPE) -p $(DEVICE) -B1 -F
+AVRDUDE = avrdude -P $(PROGRAMMER_PORT) -c $(PROGRAMMER_TYPE) -p $(DEVICE) -B8 -F
 AVRDUDE_SLOW = avrdude -P $(PROGRAMMER_PORT) -c $(PROGRAMMER_TYPE) -p $(DEVICE) -B32
 
 OBJS = ${SRCS:.c=.o}
