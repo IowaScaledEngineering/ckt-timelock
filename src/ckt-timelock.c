@@ -1,7 +1,39 @@
+/*************************************************************************
+Title:    CKT-TINYBELL Railroad Crossing Bell Circuit
+Authors:  Nathan D. Holmes <maverick@drgw.net>
+File:     $Id: $
+License:  GNU General Public License v3
+
+CREDIT:
+    The basic idea behind this playback design came from David Johson-Davies, who
+    provided the basic framework and the place where I started.
+
+LICENSE:
+    Copyright (C) 2021 Michael Petersen and Nathan Holmes
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+*************************************************************************/
+
+#include <stdlib.h>
+#include <stdbool.h>
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
 #include <util/delay.h>
+#include <util/atomic.h>
+
+#include "debouncer.h"
+
 
 typedef enum
 {
@@ -9,23 +41,17 @@ typedef enum
 	STATE_TIMERUN = 1,
 	STATE_UNLOCKED = 2,
 	STATE_RELOCKING = 3
-} turnoutState_t;
+} TurnoutState_t;
 
-#define MODE_TIMELOCK 1
-#define MODE_DUALCNTL 0
 
-uint8_t configTimelock()
-{
-	// Returns 1 if configured for timelock, 0 if configured for dual-control
-	// There's no debounce here because it shouldn't be changing at runtime
-	return ((PINC & _BV(PC4))?MODE_TIMELOCK:MODE_DUALCNTL);
-}
-
-volatile uint8_t timelock;
+volatile uint8_t timerCountdown = 0;
+volatile bool timerPhase = true;
 
 void initialize500msTimer()
 {
 	// Set up timer 0 for 2Hz interrupts
+	timerCountdown = 0;
+	timerPhase = true;
 	TCNT1 = 0;
 	OCR1A = 0x0F41;
 	TCCR1A = 0;
@@ -35,289 +61,316 @@ void initialize500msTimer()
 	TIMSK1 |= _BV(OCIE1A);
 }
 
-volatile uint8_t timerPhase = 0;
-ISR(TIMER1_COMPA_vect)
+ISR(TIM1_COMPA_vect)
 {
-	timerPhase ^= 0xFF;
+	timerPhase = !timerPhase;
 
 	if (timerPhase)
 	{
-		if (timelock)
-			timelock--;
+		if (timerCountdown)
+			timerCountdown--;
 	}
 }
 
-void setTurnoutPosition(uint8_t pos)
+uint8_t getTimerSecondsRemaining()
 {
-	if (pos)
-		PORTC |= _BV(PC7);
+	return timerCountdown;
+}
+
+void setTimer(uint8_t seconds)
+{
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	{
+		cli();
+		timerPhase = true;
+		timerCountdown = seconds;
+		TCNT1 = 0;
+		TIFR1 |= _BV(OCF1A); // Clear the interrupt flag to get the full count
+		sei();
+	}
+}
+
+
+void setTurnoutPosition(bool diverging)
+{
+	if (diverging)
+		PORTB = (PORTB & ~(_BV(PB1) | _BV(PB2))) | _BV(PB1);
 	else
-		PORTC &= ~_BV(PC7);
+		PORTB = (PORTB & ~(_BV(PB1) | _BV(PB2))) | _BV(PB2);
 }
 
 void timelockLEDOn()
 {
-	PORTD |= _BV(PD2);
+	PORTB |= _BV(PB0);
 }
 
 void timelockLEDOff()
 {
-	PORTD &= ~_BV(PD2);
-}
-
-void auxLEDOn()
-{
-	PORTD |= _BV(PD4);
-}
-
-void auxLEDOff()
-{
-	PORTD &= ~_BV(PD4);
+	PORTB &= ~_BV(PB0);
 }
 
 void trackShuntOn()
 {
-	PORTD |= _BV(PD3);
+	PORTA |= _BV(PA7);
 }
 
 void trackShuntOff()
 {
-	PORTD &= ~_BV(PD3);
+	PORTA &= ~_BV(PA7);
 }
 
-#define UNLOCK_SWITCH_MASK  (_BV(0))
-#define MANUAL_DIR_MASK     (_BV(1))
-#define INPUT_DIR_MASK      (_BV(2))
-
-uint8_t debounceInputs(uint8_t* ioState)
+uint8_t getInputState()
 {
-	//  Bit 0 - PD0 - Lock/Manual Control switch (in, needs pullup on)
-	//  Bit 1 - PD1 - Manual Control direction (in, needs pullup on)
-	//  Bit 2 - PC5 - Input Turnout Dir (in, needs pullup on)
-	static uint8_t clock_A=0, clock_B=0;
-	uint8_t rawInput = ((PINC & _BV(PC5))>>3) | (PIND & (_BV(PD0) | _BV(PD1)));
-	uint8_t delta = rawInput ^ *ioState;
-	uint8_t changes;
-
-	clock_A ^= clock_B;                     //Increment the counters
-	clock_B  = ~clock_B;
-	clock_A &= delta;                       //Reset the counters if no changes
-	clock_B &= delta;                       //were detected.
-	changes = ~((~delta) | clock_A | clock_B);
-	*ioState ^= changes;	
-
-	return(changes);
+	uint8_t retval = PINA & 0x7F;
+	return (~retval); // Invert since these are all negative logic (switch on = low)
 }
 
-uint8_t unlockSwitchOn(uint8_t ioState)
+
+void init_gpio()
 {
-	if (0 == (ioState & _BV(0)))
-		return(1);
-	else
-		return(0);
+	// Initialize ports 
+	// Pin Assignments for PORTA/DDRA
+	//  PA0 - SW1
+	//  PA1 - SW2
+	//  PA2 - SW3
+	//  PA3 - SW4
+	//  PA4 - SW5
+	//  PA5 - Lock Switch
+	//  PA6 - Ctrl Input
+	//  PA7 - Track Shunt (output)
+	DDRA  = 0b10000000;
+	PORTA = 0b01111111; // Pull-ups on for all inputs
+
+	// Pin Assignments for PORTB/DDRB
+	//  PB0 - Timelock Indicator Lamp
+	//  PB1 - Output Driver F
+	//  PB2 - Output Driver R
+	//  PB3 - /RESET (not IO)
+	//  PB4 - N/A
+	//  PB5 - N/A
+	//  PB6 - N/A
+	//  PB7 - N/A
+	DDRB  = 0b00000111;
+	PORTB = 0b00000100;
 }
 
-uint8_t getInputTurnoutPosition()
+#define CONF_SW_R_MASK        _BV(4)
+#define CONF_SW_T1_MASK       _BV(3)
+#define CONF_SW_T2_MASK       _BV(2)
+#define CONF_SW_T3_MASK       _BV(1)
+#define CONF_SW_T4_MASK       _BV(0)
+
+#define CONF_SW_MASK (CONF_SW_R_MASK | CONF_SW_T1_MASK | CONF_SW_T2_MASK | CONF_SW_T3_MASK | CONF_SW_T4_MASK)
+
+#define UNLOCK_SWITCH_MASK    _BV(5)
+#define INPUT_DIR_SWITCH_MASK _BV(6)
+
+bool isUnlockSwitchOn(DebounceState8_t* d)
 {
-	return ((PINC & _BV(PC5))?1:0);
+	return(d->debounced_state & UNLOCK_SWITCH_MASK);
 }
 
-uint8_t getTimeIntervalInSecs()
+bool getInvertTurnoutInput(DebounceState8_t* d)
 {
-	uint8_t configSwitchValue = (~PINC) & 0x0F;
-	const uint8_t timeValues[16] = { 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 90, 120, 180, 240 };
+	return(d->debounced_state & CONF_SW_R_MASK);
+}
 
+bool getInputTurnoutPosition(DebounceState8_t* d)
+{
+	bool inputState = (d->debounced_state & INPUT_DIR_SWITCH_MASK)?true:false;
+
+	if (getInvertTurnoutInput(d))
+		inputState = !inputState;
+
+	return(inputState);
+}
+
+uint8_t getTimeIntervalInSecs(DebounceState8_t* d)
+{
+	uint8_t configSwitchValue = (d->debounced_state & 0x0F);
+	const uint8_t timeValues[16] = { 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 90, 120, 180, 5 };
 	return(timeValues[configSwitchValue]);
 }
 
-void blinkAndDie()
+// Switch Definitions
+// SW1 - SW4 - Time to lock
+// SW5 - Invert turnout switch input (Off = input high = normal, On = input low = normal)
+
+typedef enum
 {
-	while(1)
+	STATE_UP_SW1_SW5 = 0,
+	STATE_UP_SW2_SW5,
+	STATE_UP_SW3_SW5,
+	STATE_UP_SW4_SW5,
+	STATE_UP_SW5,
+	STATE_TEST_INPUTS
+} TestState_t;
+
+void factoryTestMode(DebounceState8_t* d)
+{
+	TestState_t state = STATE_UP_SW1_SW5;
+	// Implements factory test mode
+	
+	trackShuntOff();
+	timelockLEDOff();
+	setTurnoutPosition(true);
+	while(true)
 	{
-		PORTD ^= _BV(PD4);// | _BV(PD3) | _BV(PD4);
-		_delay_ms(200);
+		wdt_reset();
+		debounce8(getInputState(), d);
+		// Implement factory test mode here
+		switch(state)
+		{
+			case STATE_UP_SW1_SW5:
+				setTurnoutPosition(true);
+				if ((d->debounced_state & CONF_SW_MASK) == (CONF_SW_T1_MASK | CONF_SW_T2_MASK | CONF_SW_T3_MASK | CONF_SW_T4_MASK))
+					state = STATE_UP_SW2_SW5;
+				break;
+			case STATE_UP_SW2_SW5:
+				setTurnoutPosition(false);
+				if ((d->debounced_state & CONF_SW_MASK) == (CONF_SW_T2_MASK | CONF_SW_T3_MASK | CONF_SW_T4_MASK))
+					state = STATE_UP_SW3_SW5;
+				break;
+			case STATE_UP_SW3_SW5:
+				setTurnoutPosition(true);
+				if ((d->debounced_state & CONF_SW_MASK) == (CONF_SW_T3_MASK | CONF_SW_T4_MASK))
+					state = STATE_UP_SW4_SW5;
+				break;
+			case STATE_UP_SW4_SW5:
+				setTurnoutPosition(false);
+				if ((d->debounced_state & CONF_SW_MASK) == (CONF_SW_T4_MASK))
+					state = STATE_UP_SW5;
+				break;
+			case STATE_UP_SW5:
+				setTurnoutPosition(true);
+				if ((d->debounced_state & CONF_SW_MASK) == 0)
+					state = STATE_TEST_INPUTS;
+				break;
+			case STATE_TEST_INPUTS:
+				setTurnoutPosition(getInputTurnoutPosition(d));
+				if(isUnlockSwitchOn(d))
+				{
+					trackShuntOff();
+					timelockLEDOn();
+				} else {
+					trackShuntOn();
+					timelockLEDOff();
+				}
+				break;
+		}
+		_delay_ms(20);
 	}
+}
+
+bool getEnterFactoryTestMode(DebounceState8_t* d)
+{
+	return (0x1F == (d->debounced_state & 0x1F));
+}
+
+void init_powerReduction()
+{
+	// Not strictly necessary, but might as well save power on the peripherals we don't use
+	// which would be most of them
+	
+	PRR = _BV(PRTIM0) | _BV(PRUSI) | _BV(PRADC);
 }
 
 int main(void)
 {
-	uint8_t moduleMode = 0;
-	uint8_t defaultTurnoutPosition = 1;
-	uint8_t ioState = 0xFF;
-	turnoutState_t state = STATE_LOCKED;
+	DebounceState8_t debouncedInputs;
+	TurnoutState_t state = STATE_LOCKED;
 
 	// Deal with watchdog first thing
-	MCUSR = 0;								// Clear reset status
-//	wdt_disable();
-	WDTCSR = _BV(WDP3);		// Enable WDT (4s)
+	MCUSR = 0;                       // Clear reset status
+	wdt_reset();                     // Reset the WDT, just in case it's still enabled over reset
+	wdt_enable(WDTO_250MS);             // Enable it at a 250mS timeout.
+	cli();
 
-	// Initialize ports 
-	// Pin Assignments for PORTA/DDRA
-	//  PA0 - Not used
-	//  PA1 - Not used
-	//  PA2 - Not used
-	//  PA3 - Not used
-	//  PA4 - N/A (doesn't exist)
-	//  PA5 - N/A (doesn't exist)
-	//  PA6 - N/A (doesn't exist)
-	//  PA7 - N/A (doesn't exist)
-	DDRA  = 0b00001111;
-	PORTA = 0b00000000;
-
-	// Pin Assignments for PORTB/DDRB
-	//  PB0 - Not used
-	//  PB1 - Not used
-	//  PB2 - Not used
-	//  PB3 - MOSI (in,pulled up)
-	//  PB4 - MISO (in)
-	//  PB5 - SCK (in)
-	//  PB6 - Not used
-	//  PB7 - Not used
-	DDRB  = 0b11000111;
-	PORTB = 0b00111000;
-
-	// Pin Assignments for PORTC/DDRC
-	//  PC0 - Cfg Switch 1 (in, needs pullup on)
-	//  PC1 - Cfg Switch 2 (in, needs pullup on)
-	//  PC2 - Cfg Switch 3 (in, needs pullup on)
-	//  PC3 - Cfg Switch 4 (in, needs pullup on)
-	//  PC4 - Cfg Switch 5 (in, needs pullup on)
-	//  PC5 - Input Turnout Dir (in, needs pullup on)
-	//  PC6 - N/A (/RESET pin)
-	//  PC7 - Output Turnout Dir (output)
-	DDRC  = 0b10000000;
-	PORTC = 0b11111111;
-
-	
-	// Pin Assignments for PORTD/DDRD
-	//  PD0 - Lock/Manual Control switch (in, needs pullup on)
-	//  PD1 - Manual Control direction (in, needs pullup on)
-	//  PD2 - Time running LED (out)
-	//  PD3 - Track shunt relay (out)
-	//  PD4 - Aux onboard LED (out)
-	//  PD5 - N/A (doesn't exist)
-	//  PD6 - N/A (doesn't exist)
-	//  PD7 - N/A (doesn't exist)
-	DDRD  = 0b00011100;
-	PORTD = 0b00000011;
-
+	init_gpio();
+	init_powerReduction();
 	initialize500msTimer();
-	moduleMode = configTimelock();
-	if (MODE_TIMELOCK == moduleMode)
-		defaultTurnoutPosition = (PIND & _BV(PD1))?1:0;
+	initDebounceState8(&debouncedInputs, getInputState());
+
+	// Determine here if we should go into factory test mode
+	if (getEnterFactoryTestMode(&debouncedInputs))
+	{
+		factoryTestMode(&debouncedInputs);
+	}
 
 	sei();
-
-	// TIME_RUN - passes ctrl in to ctrl out
-
 	while(1)
 	{
 		wdt_reset();
-		debounceInputs(&ioState);
+		debounce8(getInputState(), &debouncedInputs);
 
-		if (MODE_TIMELOCK == moduleMode)
+		switch(state)
 		{
-			// Timelocked Manual Switch Simulator
-			switch(state)
-			{
-				// STATE_LOCKED - holds turnout in default position	
-				case STATE_LOCKED:
-					timelock = 0;
-					setTurnoutPosition(defaultTurnoutPosition);
-					trackShuntOff();
+			// STATE_LOCKED - holds turnout in default position	
+			case STATE_LOCKED:
+				timerCountdown = 0;
+				setTurnoutPosition(false);
+				trackShuntOff();
+				timelockLEDOff();
+
+				if (isUnlockSwitchOn(&debouncedInputs))
+				{
+					setTimer(getTimeIntervalInSecs(&debouncedInputs));
+					state = STATE_TIMERUN;
+				}
+				break;
+		
+			case STATE_TIMERUN:
+				setTurnoutPosition(false);
+				trackShuntOn();
+				if (timerPhase) 
+					timelockLEDOn();
+				else
 					timelockLEDOff();
 
-					if (unlockSwitchOn(ioState))
+				if (0 == getTimerSecondsRemaining())
+				{
+					if (isUnlockSwitchOn(&debouncedInputs))
 					{
-						timelock = getTimeIntervalInSecs();
-						state = STATE_TIMERUN;
-					}
-					break;
-			
-				case STATE_TIMERUN:
-					setTurnoutPosition(defaultTurnoutPosition);
-					trackShuntOn();
-					if (timerPhase) 
-						timelockLEDOn();
-					else
-						timelockLEDOff();
-
-					if (0 == timelock)
-					{
-						if (unlockSwitchOn(ioState))
-						{
-							state = STATE_UNLOCKED;
-						} else {
-							state = STATE_LOCKED;
-						}
-					}
-
-					break;
-			
-				case STATE_UNLOCKED:
-					trackShuntOn();
-					timelockLEDOn();
-					setTurnoutPosition(getInputTurnoutPosition());
-					
-					// If the user has moved the turnout back to the default position
-					// and released the lock, return to the locked up state
-					if (!unlockSwitchOn(ioState) 
-						&& getInputTurnoutPosition() == defaultTurnoutPosition)
-					{
-						// Give the switch machine two seconds to lock back up
-						setTurnoutPosition(defaultTurnoutPosition);
-						timelock = 2;
-						state = STATE_RELOCKING;
-					}
-					break;
-
-				case STATE_RELOCKING:
-					if (0 == timelock)
-					{
-						if(!unlockSwitchOn(ioState))
-							state = STATE_LOCKED;
-						else
-							state = STATE_UNLOCKED;
-					}
-					break;
-
-				default:
-					state = STATE_LOCKED;
-					break;
-			}
-		}
-		else
-		{
-			// Dual Control Power Switch Simulator
-		
-			// Timelocked Manual Switch Simulator
-			switch(state)
-			{
-				// STATE_LOCKED - holds turnout in default position	
-				case STATE_LOCKED:
-					trackShuntOff();
-					timelockLEDOff();			
-					setTurnoutPosition(ioState & INPUT_DIR_MASK);
-					if (unlockSwitchOn(ioState))
 						state = STATE_UNLOCKED;
-					break;	
-
-				case STATE_UNLOCKED:					
-					trackShuntOn();
-					timelockLEDOn();
-					setTurnoutPosition(ioState & MANUAL_DIR_MASK);
-					if (!unlockSwitchOn(ioState))
+					} else {
 						state = STATE_LOCKED;
-					break;
-				default:
-					state = STATE_UNLOCKED;
-					break;
-					
-			}
-		}
+					}
+				}
 
-		// Wait 10mS before we get the inputs again and debounce again
-		_delay_ms(10);
+				break;
+		
+			case STATE_UNLOCKED:
+				trackShuntOn();
+				timelockLEDOn();
+				setTurnoutPosition(getInputTurnoutPosition(&debouncedInputs));
+				
+				// If the user has moved the turnout back to the default position
+				// and released the lock, return to the locked up state
+				if (!isUnlockSwitchOn(&debouncedInputs)
+					&& getInputTurnoutPosition(&debouncedInputs) == false)
+				{
+					// Give the switch machine two seconds to lock back up
+					setTurnoutPosition(false);
+					setTimer(1);
+					state = STATE_RELOCKING;
+				}
+				break;
+
+			case STATE_RELOCKING:
+				if (0 == getTimerSecondsRemaining())
+				{
+					if(!isUnlockSwitchOn(&debouncedInputs))
+						state = STATE_LOCKED;
+					else
+						state = STATE_UNLOCKED;
+				}
+				break;
+
+			default:
+				state = STATE_LOCKED;
+				break;
+		}
+		_delay_ms(20);
 	}
 }
 

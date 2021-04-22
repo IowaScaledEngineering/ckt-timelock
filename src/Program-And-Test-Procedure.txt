@@ -1,0 +1,11 @@
+Programming Notes:
+-----------------------
+Make sure switch 'R' is off and the lock switch is not connected, or the device won't program
+
+Test Procedure:
+1) All switches up while device off
+2) Power up device
+3) Make sure orage light (D4) comes on.  This indicates you're in test mode.  If it's blue, something's wrong
+4) Flip switches down one at a time, starting with R and working to T1.  Each time, the blue/orange LEDs should flip
+5) Once all switches are down, plug in lock/dir toggle head unit
+6) Lock input should toggle between white/red, and direction should toggle between blue/orange
